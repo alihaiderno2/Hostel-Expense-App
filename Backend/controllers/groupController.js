@@ -3,6 +3,8 @@ const Transaction = require('../models/Transaction')
 const User = require('../models/User')
 const crypto = require('crypto')
 
+const mongoose = require('mongoose');
+
 const createGroup = async (req, res) => {
     try {
         const {name} = req.body;
@@ -53,41 +55,35 @@ const joinGroup = async (req, res) => {
     }
 }
 
-const getGroupBalances = async (req,res) =>{
-    try{
-        const {groupId} = req.params;
+const getGroupBalances = async (req, res) => {
+    try {
+        const { groupId } = req.params;
 
-        const transactions = await Transaction.find({ groupId, status: 'accepted' });
-
-        const balances = {};
-
-        transactions.forEach(tx=>{
-            tx.payers.forEach(payer=>{
-                const userId = payer.user.toString();
-                if(!balances[userId]){
-                    balances[userId] = 0;
-                }
-                balances[userId] += payer.amount;
-            })
-
-            tx.splits.forEach(split=>{
-                const userId = split.user.toString();
-                if(!balances[userId]){
-                    balances[userId] = 0;
-                }
-                balances[userId] -= split.share;
-            })
+        // Force cast to ObjectId to ensure the query hits
+        const transactions = await Transaction.find({ 
+            groupId: new mongoose.Types.ObjectId(groupId), 
+            status: 'accepted' 
         });
 
-        const result = Object.keys(balances).map(userId => ({
-            userId,
-            netBalance: balances[userId]
+        const balances = {};
+        transactions.forEach(tx => {
+            tx.payers.forEach(payer => {
+                const uid = payer.user.toString();
+                balances[uid] = (balances[uid] || 0) + payer.amount;
+            });
+            tx.splits.forEach(split => {
+                const uid = split.user.toString();
+                balances[uid] = (balances[uid] || 0) - split.share;
+            });
+        });
+
+        const result = Object.keys(balances).map(uid => ({
+            userId: uid,
+            netBalance: balances[uid]
         }));
 
         res.json(result);
-
-    }catch(err){
-        console.error("BALANCE CALC ERROR:", err.message);
+    } catch (err) {
         res.status(500).json({ error: "Server Error calculating balance" });
     }
 };
@@ -115,6 +111,10 @@ const deleteGroup = async (req,res)=>{
         const {groupId} = req.params;
 
         const group = await Group.findById(groupId);
+
+        if (!group) {
+            return res.status(404).json({ msg: "Group not found" });
+        }
 
         if (group.admin.toString() !== req.user.id) {
             return res.status(401).json({ msg: "Only the admin can delete this group" });

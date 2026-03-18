@@ -42,40 +42,43 @@ const createTransaction = async (req, res) => {
     }
 };
 
-const updateTransactionStatus = async (req,res)=>{
-    try{
-        const {action} = req.body;
+const updateTransactionStatus = async (req, res) => {
+    try {
+        const { action } = req.body;
         const transactionId = req.params.id;
         const userId = req.user.id;
 
         const transaction = await Transaction.findById(transactionId);
-        if(!transaction) {
-            return res.status(404).json({ msg: "Transaction not found" });
-        }
+        if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
 
-        if(!transaction.involvedUsers.includes(userId)) {
-            return res.status(403).json({ msg: "You are not involved in this transaction" });
-        }
+        // Convert ObjectIds to strings for a proper check
+        const isInvolved = transaction.involvedUsers.some(id => id.toString() === userId);
+        if (!isInvolved) return res.status(403).json({ msg: "Not involved in this bill" });
 
-        if(action === 'accept'){
-            if (!transaction.approvals.includes(userId)) {
+        if (action === 'accept') {
+            // 1. Convert everything to strings to be safe
+            const currentApprovals = transaction.approvals.map(id => id.toString());
+            
+            // 2. Only push if the user hasn't approved yet
+            if (!currentApprovals.includes(userId)) {
                 transaction.approvals.push(userId);
             }
 
+            // 3. Log this to your terminal to see the numbers
+            console.log(`Approvals: ${transaction.approvals.length} / Involved: ${transaction.involvedUsers.length}`);
+
+            // 4. The Flip
             if (transaction.approvals.length === transaction.involvedUsers.length) {
                 transaction.status = 'accepted';
             }
-        }
-        else if(action === 'reject'){
+    } else if (action === 'reject') {
             transaction.status = 'disputed';
         }
 
         await transaction.save();
-        res.json({ msg: `Transaction ${action}ed`, transaction });
-    }
-    catch(err){
-        console.error("STATUS UPDATE ERROR:", err.message);
-        res.status(500).json({ error: "Failed to update transaction status." });
+        res.json({ msg: `Transaction ${action}ed`, status: transaction.status, transaction });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to update status" });
     }
 };
 
