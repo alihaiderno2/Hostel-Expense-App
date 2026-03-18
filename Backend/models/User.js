@@ -17,7 +17,7 @@ const UserSchema = new mongoose.Schema({
         select: false
     },
     groups:[{
-        type: mongoose.Schema.type.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'Group'
     }],
     createdAt: {
@@ -26,4 +26,4 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
-modules.export = mongoose.model('User',UserSchema);
+module.exports = mongoose.model('User',UserSchema);

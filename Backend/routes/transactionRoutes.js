@@ -1,0 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const { createTransaction, updateTransactionStatus } = require('../controllers/transactionController');
+const auth = require('../middleware/authMiddleware');
+
+router.post('/add', auth, createTransaction);
+router.patch('/vote/:id', auth, updateTransactionStatus);
+router.get('/group/:groupId', auth, getGroupTransactions);
+
+module.exports = router;
