@@ -56,15 +56,13 @@ const updateTransactionStatus = async (req, res) => {
         if (!isInvolved) return res.status(403).json({ msg: "Not involved in this bill" });
 
         if (action === 'accept') {
-            // 1. Convert everything to strings to be safe
+
             const currentApprovals = transaction.approvals.map(id => id.toString());
-            
-            // 2. Only push if the user hasn't approved yet
+
             if (!currentApprovals.includes(userId)) {
                 transaction.approvals.push(userId);
             }
 
-            // 3. Log this to your terminal to see the numbers
             console.log(`Approvals: ${transaction.approvals.length} / Involved: ${transaction.involvedUsers.length}`);
 
             // 4. The Flip
@@ -96,4 +94,69 @@ const getGroupTransactions = async (req,res) =>{
     }
 };
 
-module.exports = { createTransaction, updateTransactionStatus, getGroupTransactions};
+const recordSettlement = async (req,res) => {
+    try{
+        const {groupId , paidTo, amount} = req.body;
+        const paidBy = req.user.id;
+
+        if(paidBy === paidTo) {
+            return res.status(400).json({ msg: "You cannot settle a debt with yourself." });
+        }
+
+        const newTransaction = new Transaction({
+            groupId,
+            description: 'Debt settlement',
+            amount: amount,
+            type : 'settlement',
+            payers: [{ user: paidBy, amount: amount }],
+            splits: [{ user: paidTo, share: amount }],
+            involvedUsers : [paidBy, paidTo],
+            visibility : 'group',
+            approvals: [paidBy]
+        });
+
+        const savedSettlement = await newTransaction.save();
+        res.status(201).json(savedSettlement);
+
+    }catch(err){
+        console.error("RECORD SETTLEMENT ERROR:", err.message);
+        res.status(500).json({ error: "Failed to record settlement." });
+    }
+};
+
+const deleteTransaction = async (req,res) => {
+    try{
+        const transactionId = req.params.id;
+        const userId = req.user.id;
+
+        const transaction = await Transaction.findById(transactionId); 
+
+        if(!transaction){
+            return res.status(404).json({ msg: "Transaction not found" });
+        }
+
+        if(transaction.status !== 'pending'){
+            return res.status(400).json({ 
+                msg: "Cannot delete an accepted transaction. Please record a settlement to reverse the balances instead." 
+            });
+        }
+
+        const isPayer = transaction.payers.some(p => p.user.toString() === userId);
+
+        if (!isPayer) {
+            return res.status(403).json({ 
+                msg: "Only the person who paid for this expense can delete it." 
+            });
+        }
+
+        await transaction.deleteOne();
+        res.json({ msg: "Transaction deleted successfully." });
+    }
+    catch(err){
+        console.error("DELETE TRANSACTION ERROR:", err.message);
+        res.status(500).json({ error: "Failed to delete transaction." });
+    }
+};
+
+module.exports = { createTransaction, updateTransactionStatus, getGroupTransactions,recordSettlement, deleteTransaction
+ };

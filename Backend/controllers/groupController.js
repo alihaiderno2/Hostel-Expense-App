@@ -127,4 +127,79 @@ const deleteGroup = async (req,res)=>{
     }
 };
 
-module.exports = {createGroup, joinGroup,getGroupBalances,getGroupInfo, deleteGroup};
+const leaveGroup = async (req,res) => {
+    try{
+        const {groupId} = req.params;
+        const userId = req.user.id;
+        const mongoose = require('mongoose');
+
+        const group = await Group.findById(groupId);
+        if(!group){
+            return res.status(404).json({ msg: "Group not found" });
+        }
+
+        if(!group.members.includes(userId)){
+            return res.status(400).json({ msg: "You are not a member of this group" });
+        }
+        // if person tries to leave but has pending transactions, block them until they settle or delete the transactions
+        const pendingTx = await Transaction.findOne({
+            groupId: new mongoose.Types.ObjectId(groupId),
+            status: 'pending',
+            involvedUsers: userId
+        });
+
+        if (pendingTx) {
+            return res.status(400).json({ 
+                msg: "You have pending bills. Please accept or dispute them before leaving." 
+            });
+        }
+
+        const transactions = await Transaction.find({
+            groupId: new mongoose.Types.ObjectId(groupId),
+            status: 'accepted'
+        });
+
+        let myBalance = 0;
+        transactions.forEach(tx => {
+            tx.payers.forEach(payer => {
+                if (payer.user.toString() === userId) myBalance += payer.amount;
+            });
+            tx.splits.forEach(split => {
+                if (split.user.toString() === userId) myBalance -= split.share;
+            });
+        });
+
+        if (myBalance !== 0) {
+            return res.status(400).json({ 
+                msg: `Cannot leave group. Your balance must be exactly 0, but it is ${myBalance}. Please settle up first.` 
+            });
+        }
+
+        // if group admin leaves 
+        if(group.admin.toString() === userId){
+            if(group.members.length > 1){
+                const nextAdmin = group.members.find(id => id.toString() !== userId);
+                group.admin = nextAdmin;
+            }
+            else{
+                await group.deleteOne();
+                await User.findByIdAndUpdate(userId, { $pull: { groups: groupId } });
+                return res.json({ msg: "You were the last member. Group closed." });
+            }
+        }
+
+        // Making the group leave for the user
+        group.members = group.members.filter(id => id.toString() !== userId);
+        await group.save();
+
+        await User.findByIdAndUpdate(userId, { $pull: { groups: groupId } });
+
+        res.json({ msg: "Successfully left the group." });
+
+    }catch(err){
+        console.error("LEAVE GROUP ERROR:", err.message);
+        res.status(500).json({ error: "Failed to leave group." });
+    }
+};
+
+module.exports = {createGroup, joinGroup,getGroupBalances,getGroupInfo, deleteGroup, leaveGroup};
