@@ -120,6 +120,8 @@ const deleteGroup = async (req,res)=>{
             return res.status(401).json({ msg: "Only the admin can delete this group" });
         }
 
+        await Transaction.deleteMany({ groupId: groupId });
+        
         await group.deleteOne();
         res.json({ msg: "Group deleted successfully" });
     }catch(err){

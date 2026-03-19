@@ -2,7 +2,7 @@ const Transaction = require('../models/Transaction');
 
 const createTransaction = async (req, res) => {
     try {
-        const { groupId, description, totalAmount, payers, splits, visibility, type} = req.body;
+        const { groupId, description, totalAmount, payers, splits, visibility, type, receiptImage} = req.body;
 
         const sumPaid = payers.reduce((sum, payer) => sum + payer.amount, 0);
         if(sumPaid !== totalAmount) {
@@ -30,8 +30,8 @@ const createTransaction = async (req, res) => {
             involvedUsers,
             visibility,
             approvals: [req.user.id],
-            type
-
+            type,
+            receiptImage
         });
         const savedTransaction = await newTransaction.save();
         res.status(201).json(savedTransaction);
