@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { AuthContext } from "../../context/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -19,6 +20,7 @@ interface SignupProps {
 
 const Signup: React.FC<SignupProps> = ({ onSignup }) => {
   const router = useRouter();
+  const auth = useContext(AuthContext);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,36 +28,20 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
-      alert("Please fill in all fields");
+      Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
-    try {
-      const response = await fetch("http://localhost:5000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: name,
-          email: email,
-          password: password,
-        }),
-      });
+    const result = await auth?.signup(name, email, password);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert("Success: Account created!");
+    if (result?.success) {
+      if (onSignup) {
         onSignup();
       } else {
-        alert(data.message || "Registration failed");
+        router.replace("/");
       }
-    } catch (error) {
-      console.log("Connection Error:", error);
-      alert(
-        "Error: Could not connect to the backend server. Make sure your Node.js server is running on port 5000.",
-      );
+    } else {
+      Alert.alert("Signup Failed", result?.message || "An error occurred during signup");
     }
   };
 

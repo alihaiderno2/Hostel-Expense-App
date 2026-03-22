@@ -13,6 +13,7 @@ interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+    signup: (name: string, email: string, password: string) => Promise<{ success: boolean; message?: string }>;
     logout: () => Promise<void>;
 }
 
@@ -41,27 +42,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const login = async (email: string, password: string) => {
         try{
+            console.log('🔍 Attempting login with:', email);
             const res = await api.post('/auth/login', { email, password });
+            console.log('✅ Login response:', res.data);
             const { token, user } = res.data;
 
             await SecureStore.setItemAsync('token', token);
             setUser(user);
+            console.log('✅ Login successful, user:', user);
             return {success: true};
         }
         catch (error : any) {
+            console.error('❌ Login error:', error);
+            console.error('❌ Error message:', error.message);
+            console.error('❌ Error response:', error.response);
+            console.error('❌ Error config:', error.config);
             return {
                 success: false,
-                message: error.response?.data?.msg || 'Login failed'
+                message: error.response?.data?.msg || error.message || 'Login failed'
             }
         }
     };
+    const signup = async (name: string, email: string, password: string) => {
+        try {
+            console.log('🔍 Attempting signup with:', email);
+            const res = await api.post('/auth/register', { name, email, password });
+            console.log('✅ Signup response:', res.data);
+            const { token, user } = res.data;
+
+            await SecureStore.setItemAsync('token', token);
+            setUser(user);
+            console.log('✅ Signup successful, user:', user);
+            return { success: true };
+        } catch (error: any) {
+            console.error('❌ Signup error:', error);
+            console.error('❌ Error message:', error.message);
+            console.error('❌ Error response:', error.response);
+            return {
+                success: false,
+                message: error.response?.data?.msg || error.message || 'Signup failed'
+            };
+        }
+    };
+
     const logout = async () => {
         await SecureStore.deleteItemAsync('token');
         setUser(null);
     }
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ user, isLoading, login, signup, logout }}>
             {children}
         </AuthContext.Provider>
     );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useContext} from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -6,9 +6,14 @@ import {
   TextInput, 
   TouchableOpacity, 
   Dimensions, 
-  ImageBackground 
+  ImageBackground,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { AuthContext } from '../../context/AuthContext';  
+import { api } from '../../services/api';
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -18,7 +23,32 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const router = useRouter();
+  const auth = useContext(AuthContext);
 
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = async () => {
+    console.log('👆 Login button pressed'); // Add this
+    if(!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
+      return;
+    }
+
+    const result = await auth?.login(email, password);
+
+    if(result?.success) {
+      if(onLogin){
+        onLogin();
+      }else{
+        router.replace('/');
+      }
+    }
+    else {
+      Alert.alert('Login Failed', result?.message || 'An error occurred during login');
+    }
+
+  };
   return (
     <View style={styles.container}>
       {/* Black Header Section */}
@@ -39,16 +69,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           placeholder="Email Address" 
           placeholderTextColor="#999"
           keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none" 
         />
 
         <TextInput 
           style={styles.input} 
           placeholder="Password" 
           placeholderTextColor="#999"
-          secureTextEntry 
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.loginButton} onPress={onLogin}>
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginButtonText}>LOGIN</Text>
         </TouchableOpacity>
 
