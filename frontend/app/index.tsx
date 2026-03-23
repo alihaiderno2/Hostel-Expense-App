@@ -1,5 +1,13 @@
-import Login from '../components/ui/Login';
+import { Redirect } from 'expo-router';
 
-export default function Page() {
-  return <Login onLogin={() => console.log('Login Pressed')} />;
+export default function Index() {
+  // Check if user is authenticated
+  // For now, always redirect to login
+  const isAuthenticated = false;
+
+  if (isAuthenticated) {
+    return <Redirect href="/(tabs)/dashboard" />;
+  }
+
+  return <Redirect href="/(auth)/login" />;
 }

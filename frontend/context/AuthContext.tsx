@@ -57,9 +57,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error('❌ Error message:', error.message);
             console.error('❌ Error response:', error.response);
             console.error('❌ Error config:', error.config);
+
+            const isNetworkError = !error.response && error.message === 'Network Error';
             return {
                 success: false,
-                message: error.response?.data?.msg || error.message || 'Login failed'
+                message: isNetworkError
+                    ? 'Cannot reach server right now. Check internet and try again in a few seconds.'
+                    : (error.response?.data?.msg || error.message || 'Login failed')
             }
         }
     };
@@ -78,9 +82,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error('❌ Signup error:', error);
             console.error('❌ Error message:', error.message);
             console.error('❌ Error response:', error.response);
+
+            const isNetworkError = !error.response && error.message === 'Network Error';
             return {
                 success: false,
-                message: error.response?.data?.msg || error.message || 'Signup failed'
+                message: isNetworkError
+                    ? 'Cannot reach server right now. Check internet and try again in a few seconds.'
+                    : (error.response?.data?.msg || error.message || 'Signup failed')
             };
         }
     };
