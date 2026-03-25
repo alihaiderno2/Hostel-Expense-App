@@ -1,5 +1,5 @@
 const dns = require('node:dns/promises');
-dns.setServers(['1.1.1.1', '8.8.8.8']); // Forces Node to use Cloudflare/Google DNS
+dns.setServers(['1.1.1.1', '8.8.8.8']); 
 const { default: mongoose, mongo } = require("mongoose");
 
 const connectDB = async() =>{
