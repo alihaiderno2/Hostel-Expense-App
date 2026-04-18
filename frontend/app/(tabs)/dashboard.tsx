@@ -6,6 +6,7 @@ import HeroCard from '../../components/dashboard/HeroCard';
 import QuickActions from '../../components/dashboard/QuickActions';
 import RecentActivity from '../../components/dashboard/RecentActivity';
 import { ExpenseSummary, RecentActivityItem } from '../../types';
+import { api } from '../../services/api';
 
 export default function DashboardScreen() {
   // Mock data for demonstration purposes
@@ -47,6 +48,78 @@ export default function DashboardScreen() {
     },
   ]);
 
+  const [user, setUser] = useState({
+    name: 'Loading...',
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        // getting the profile data first
+        const userRes = await api.get('/auth/me');
+        setUser({
+          name: userRes.data.name,
+        });
+
+        // then getting the first group ID
+        const groupId = userRes.data.groups[0]?._id;
+
+        if(groupId){
+          const [balanceRes, transactionsRes] = await Promise.all([
+            api.get(`/groups/${groupId}/balances`),
+            api.get(`/transactions/group/${groupId}`)
+            ]);
+
+            const total = transactionsRes.data.reduce((sum: number, transaction: any) => sum + transaction.amount, 0);
+            const myBalanceEntry = balanceRes.data.find((entry: any) => entry.userId === userRes.data._id);
+            const myNet = myBalanceEntry ?.netBalance ||0;
+
+            const currentUserId = userRes.data._id;
+            const allTransactions = transactionsRes.data;
+
+            const totalPaidByUser = allTransactions.reduce((sum: number, transaction: any) => {
+              const myPayment = transaction.payers?.find((p: any) => (p.user?._id || p.user) === currentUserId);
+              return sum + (myPayment ? myPayment.amount : 0);
+            }, 0);
+
+            const totalUserShare = allTransactions.reduce((sum: number, tx: any) => {
+              const mySplit = tx.splits?.find((s: any) => (s.user?._id || s.user) === currentUserId);
+              return sum + (mySplit ? mySplit.share : 0);
+            }, 0);
+
+            setSummary({
+              totalGroupExpenses: total,
+              yourShare: totalUserShare,
+              youPaid: totalPaidByUser,
+              balance: myNet,
+              status: myNet > 0 ? 'owed' : 'owe',
+            }
+            );
+
+            const mappedActivities = transactionsRes.data.map((transaction: any) => ({
+              ...transaction,
+              id: transaction._id,
+              title: transaction.description,
+              amount: transaction.amount,
+              date: transaction.createdAt,
+              category: transaction.type || 'other',
+            })
+            );
+            setActivities(mappedActivities);
+        }
+      }
+      catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+      finally {
+        setLoading(false);
+      }
+    };
+    loadDashboardData();
+  }, []);
   const handleAddExpense = () => {
     console.log('Add Expense pressed');
     // Navigate to Add Expense screen
@@ -71,8 +144,7 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.container}>
       {/* Zone 1: Header */}
       <Header
-        userName="Ali"
-        roomNumber="Room 404"
+        userName={user.name}
         onSettingsPress={handleSettingsPress}
       />
 
