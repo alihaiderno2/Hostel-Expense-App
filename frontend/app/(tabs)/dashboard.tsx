@@ -7,8 +7,10 @@ import QuickActions from '../../components/dashboard/QuickActions';
 import RecentActivity from '../../components/dashboard/RecentActivity';
 import { ExpenseSummary, RecentActivityItem } from '../../types';
 import { api } from '../../services/api';
+import { useRouter } from 'expo-router';
 
 export default function DashboardScreen() {
+  const router = useRouter();
   // Mock data for demonstration purposes
   const [summary, setSummary] = useState<ExpenseSummary>({
     totalGroupExpenses: 12450.50,
@@ -122,7 +124,7 @@ export default function DashboardScreen() {
   }, []);
   const handleAddExpense = () => {
     console.log('Add Expense pressed');
-    // Navigate to Add Expense screen
+    router.push('../add-expense');
   };
 
   const handleSettleUp = () => {
